@@ -1,26 +1,35 @@
 #!/usr/bin/env python3
 """Daily briefing generator.
 
-Downloads the newest PDF from SOURCE_URL, has Claude read and summarize it
-into the app's Markdown convention (a leading blockquote as "Kurzfassung",
-then `## Eyebrow` / `### Headline` / paragraph / optional link sections),
-and writes docs/posts/<date>.md plus a matching docs/posts/index.json entry.
+Downloads the newest PDF from SOURCE_URL, has Claude read it, research
+related Swiss-media coverage, and write it up in the app's Markdown
+convention (a leading blockquote as "Kurzfassung", then `## Eyebrow` /
+`### Headline` / paragraph / links sections), and writes
+docs/posts/<date>.md plus a matching docs/posts/index.json entry.
 
 Run manually with:  ANTHROPIC_API_KEY=... python scripts/generate_briefing.py
+
+Modes (env var BRIEFING_MODE, default "full"):
+  full  - normal behavior: (re)writes today's post and index.json entry.
+  merge - if today's post already exists, only APPENDS sections that
+          aren't already present (matched by eyebrow label) and leaves
+          existing sections and the index.json title untouched. Meant
+          for a manual same-day re-run that shouldn't clobber a post
+          someone may have already read or hand-edited. Falls back to
+          normal "full" behavior if no post exists yet for today.
 
 NOTE on the scraping step: the sandbox this script was written in has no
 network access to sfp.ch (an unrelated sandbox-only restriction — the GitHub
 Actions runner that actually executes this has normal internet access), so
-`find_download_links` / `pick_newest_pdf` below are untested against the
-live page. They're written for TYPO3's `eID=download&t=f&f=<id>&token=...`
-download links (confirmed as this site's actual mechanism) plus plain
-`*.pdf` hrefs as a fallback. The first real run's log line
-("Using PDF: ... (<strategy>)") shows which heuristic fired and which URL
-it picked — check it against the real page and adjust if it picked wrong.
+`find_download_links` / `pick_newest_pdf` below are written for TYPO3's
+`eID=download&t=f&f=<id>&token=...` download links (confirmed as this
+site's actual mechanism, verified against a real run's log) plus plain
+`*.pdf` hrefs as a fallback.
 """
 
 import io
 import json
+import os
 import re
 import sys
 from datetime import datetime
@@ -39,6 +48,20 @@ INDEX_PATH = POSTS_DIR / "index.json"
 TZ = ZoneInfo("Europe/Zurich")
 MODEL = "claude-opus-5"
 
+# Swiss outlets Claude is allowed to pull related-coverage links from via
+# web search. Edit freely — this is deliberately a starting set, not
+# exhaustive ("und alle weiteren deutschweizer medien" from the brief).
+ALLOWED_NEWS_DOMAINS = [
+    "nzz.ch",
+    "tagesanzeiger.ch",
+    "handelszeitung.ch",
+    "fuw.ch",
+    "cash.ch",
+    "20min.ch",
+    "tsri.ch",
+    "watson.ch",
+]
+
 DATE_PATTERNS = [
     re.compile(r"(20\d{2})[-_.](\d{2})[-_.](\d{2})"),  # 2026-08-17
     re.compile(r"(\d{2})[-_.](\d{2})[-_.](20\d{2})"),  # 17-08-2026
@@ -54,6 +77,22 @@ Abschnitte, die sich natürlich aus dem Dokument ergeben — erfinde keine \
 Themen wie Immobilienmarkt/Kapitalmarkt, wenn das Dokument etwas anderes \
 behandelt. Schreibe auf Deutsch.
 
+ZUSÄTZLICHE RECHERCHE (via Websuche):
+Suche für jeden Abschnitt gezielt nach höchstens einem passenden, aktuellen \
+Artikel (idealerweise vom selben oder Vortag) bei einem Schweizer Medium \
+zum gleichen Thema. NZZ ist die bevorzugte Quelle, wenn sie das Thema \
+abdeckt; sonst ein anderes Schweizer Medium aus der erlaubten Domain-Liste. \
+Verlinke einen gefundenen Artikel als eigene Zeile direkt nach dem \
+Fliesstext im Format "[Medium: Artikeltitel](URL)" (z.B. \
+"[NZZ: Immobilienpreise steigen weiter](https://www.nzz.ch/...)"). Nutze \
+NUR echte URLs aus deinen Suchergebnissen — erfinde niemals einen Link oder \
+Titel. Wenn kein passender Artikel gefunden wird, lasse die Zeile ganz weg. \
+Berichte dieselbe zugrundeliegende Story/denselben Artikel nicht in \
+mehreren Abschnitten — pro Thema/Story maximal eine Erwähnung.
+
+Füge KEINE eigene "Quelle"-Zeile für das PDF-Dokument selbst hinzu — das \
+übernimmt das aufrufende Programm automatisch.
+
 Antworte NUR in exakt diesem Format, ohne zusätzliche Erklärungen davor \
 oder danach:
 
@@ -64,6 +103,7 @@ TITLE: <kurzer, prägnanter Titel, max. 80 Zeichen>
 ## <Eyebrow-Label Abschnitt 1, 1-3 Wörter, z.B. eine Kategorie oder ein Thema>
 ### <Prägnante Schlagzeile für Abschnitt 1>
 <Fliesstext, 2-4 Sätze>
+[<Medium>: <Artikeltitel>](<URL>)
 
 ## <Eyebrow-Label Abschnitt 2>
 ### <Schlagzeile Abschnitt 2>
@@ -74,8 +114,7 @@ TITLE: <kurzer, prägnanter Titel, max. 80 Zeichen>
 Regeln:
 - Der Blockquote (Kurzfassung) kommt genau einmal, direkt nach der TITLE-Zeile.
 - Jeder Abschnitt beginnt mit "## " (Eyebrow) gefolgt von "### " (Headline).
-- Keine Links erfinden. Nur wenn im Originaltext eine konkrete URL genannt \
-wird, darfst du sie als "[Linktext →](URL)" ergänzen — sonst weglassen.
+- Der Recherche-Link (falls vorhanden) ist die letzte Zeile des Abschnitts.
 - Kein H1, keine weitere Formatierung ausserhalb der oben gezeigten Struktur.
 """
 
@@ -150,8 +189,16 @@ def summarize(pdf_text, is_weekly):
     )
     response = client.messages.create(
         model=MODEL,
-        max_tokens=4096,
+        max_tokens=8192,
         system=SYSTEM_PROMPT,
+        tools=[
+            {
+                "type": "web_search_20260209",
+                "name": "web_search",
+                "max_uses": 10,
+                "allowed_domains": ALLOWED_NEWS_DOMAINS,
+            }
+        ],
         messages=[{"role": "user", "content": user_note + pdf_text}],
     )
     text = "".join(block.text for block in response.content if block.type == "text")
@@ -162,6 +209,60 @@ def summarize(pdf_text, is_weekly):
     title_line, _, body = text.partition("---")
     title = title_line.split("TITLE:", 1)[1].strip()
     return title, body.strip()
+
+
+def split_sections(markdown):
+    """Splits into (intro, [(eyebrow, section_block), ...]).
+
+    `intro` is everything before the first "## " line (the blockquote /
+    Kurzfassung). Each section_block is the full "## ..." chunk, including
+    its own trailing newline, up to (not including) the next "## ".
+    """
+    parts = re.split(r"(?m)^## ", markdown)
+    intro = parts[0].rstrip()
+    sections = []
+    for chunk in parts[1:]:
+        eyebrow_line, _, _ = chunk.partition("\n")
+        eyebrow = eyebrow_line.strip()
+        block = "## " + chunk.rstrip() + "\n"
+        sections.append((eyebrow, block))
+    return intro, sections
+
+
+def append_source_links(markdown, pdf_url):
+    """Appends the deterministic "[📰 Quelle](pdf_url)" line to the end of
+    every section — always the real, known-good PDF URL, never something
+    the model could get wrong or omit.
+    """
+    intro, sections = split_sections(markdown)
+    out = []
+    for eyebrow, block in sections:
+        block = block.rstrip() + f"\n\n[📰 Quelle]({pdf_url})\n"
+        out.append((eyebrow, block))
+    body = intro + "\n\n" + "\n".join(block for _, block in out)
+    return body.strip() + "\n"
+
+
+def merge_markdown(existing_md, new_md):
+    """Appends sections from new_md that aren't already present in
+    existing_md (matched by eyebrow label, case-insensitive). Existing
+    sections and the intro/Kurzfassung are left untouched. Returns
+    (merged_markdown, [added_eyebrows]).
+    """
+    existing_intro, existing_sections = split_sections(existing_md)
+    _, new_sections = split_sections(new_md)
+    existing_keys = {e.lower() for e, _ in existing_sections}
+
+    merged_sections = list(existing_sections)
+    added = []
+    for eyebrow, block in new_sections:
+        if eyebrow.lower() in existing_keys:
+            continue
+        merged_sections.append((eyebrow, block))
+        added.append(eyebrow)
+
+    merged = existing_intro + "\n\n" + "\n".join(block for _, block in merged_sections)
+    return merged.strip() + "\n", added
 
 
 def load_index():
@@ -178,8 +279,12 @@ def save_index(entries):
 
 
 def main():
+    mode = os.environ.get("BRIEFING_MODE", "full").strip().lower()
     today = datetime.now(TZ).date()
     is_weekly = today.weekday() == 6  # Monday=0 ... Sunday=6
+    date_str = today.isoformat()
+    filename = f"{date_str}.md"
+    post_path = POSTS_DIR / filename
 
     print(f"Fetching {SOURCE_URL} ...")
     html = requests.get(SOURCE_URL, timeout=30).text
@@ -196,11 +301,21 @@ def main():
         sys.exit(1)
 
     title, body_md = summarize(text, is_weekly)
+    body_md = append_source_links(body_md, pdf_url)
 
-    date_str = today.isoformat()
-    filename = f"{date_str}.md"
     POSTS_DIR.mkdir(parents=True, exist_ok=True)
-    (POSTS_DIR / filename).write_text(body_md + "\n", encoding="utf-8")
+
+    if mode == "merge" and post_path.exists():
+        existing_md = post_path.read_text(encoding="utf-8")
+        merged_md, added = merge_markdown(existing_md, body_md)
+        if not added:
+            print("Merge mode: no new sections found — leaving existing file untouched.")
+            return
+        post_path.write_text(merged_md, encoding="utf-8")
+        print(f"Merge mode: added {len(added)} new section(s) to {filename}: {', '.join(added)}")
+        return
+
+    post_path.write_text(body_md, encoding="utf-8")
 
     entries = [e for e in load_index() if e["date"] != date_str]
     entries.append(

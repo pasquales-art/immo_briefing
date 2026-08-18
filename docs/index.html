@@ -168,6 +168,74 @@
     border-radius: 3px;
   }
 
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .menu-wrap {
+    position: relative;
+  }
+
+  .dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 190px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    padding: 6px;
+    display: none;
+    z-index: 30;
+  }
+
+  .dropdown-menu.open { display: block; }
+
+  .dropdown-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 10px;
+    border: none;
+    background: none;
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .dropdown-item:hover,
+  .dropdown-item:focus-visible {
+    background: var(--bg);
+  }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+    transform: translateX(-50%);
+    background: var(--fg);
+    color: var(--bg);
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 10px 16px;
+    border-radius: 14px;
+    max-width: 86%;
+    text-align: center;
+    z-index: 50;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+  }
+
+  .toast.visible { opacity: 1; }
+
   .date-hero {
     font-family: var(--font-display);
     font-weight: 800;
@@ -606,6 +674,103 @@
     return btn;
   }
 
+  var GITHUB_REPO = 'pasquales-art/immo_briefing';
+  var GITHUB_WORKFLOW_FILE = 'daily-briefing.yml';
+
+  function showToast(message) {
+    var toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    requestAnimationFrame(function () { toast.classList.add('visible'); });
+    setTimeout(function () {
+      toast.classList.remove('visible');
+      setTimeout(function () { toast.remove(); }, 300);
+    }, 4000);
+  }
+
+  // There is no in-app "trigger + wait for completion" here on purpose:
+  // doing that would require an authenticated GitHub API call from the
+  // browser, which would mean shipping a GitHub token inside this public,
+  // unauthenticated PWA's client-side JS — anyone could read it out and
+  // abuse it (spam-trigger runs, burn the ANTHROPIC_API_KEY budget). This
+  // opens GitHub's own "Run workflow" page instead, where you're already
+  // authenticated as yourself and can pick the merge/full mode directly.
+  function handleManualUpdate() {
+    var url = 'https://github.com/' + GITHUB_REPO + '/actions/workflows/' + GITHUB_WORKFLOW_FILE;
+    window.open(url, '_blank', 'noopener');
+    showToast('GitHub Actions geöffnet — dort "Run workflow" antippen. Modus "merge" ergänzt nur, statt zu überschreiben.');
+  }
+
+  function menuIconSvg() {
+    return '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="4" r="1.4" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="1.4" fill="currentColor" stroke="none"/><circle cx="10" cy="16" r="1.4" fill="currentColor" stroke="none"/></svg>';
+  }
+
+  function makeMenuButton() {
+    var wrap = document.createElement('div');
+    wrap.className = 'menu-wrap';
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'icon-btn';
+    btn.innerHTML = menuIconSvg();
+    btn.setAttribute('aria-label', 'Menü');
+    btn.setAttribute('aria-haspopup', 'true');
+    btn.setAttribute('aria-expanded', 'false');
+
+    var menu = document.createElement('div');
+    menu.className = 'dropdown-menu';
+    menu.setAttribute('role', 'menu');
+
+    function onOutsideClick(ev) {
+      if (!wrap.contains(ev.target)) closeMenu();
+    }
+
+    function onKeydown(ev) {
+      if (ev.key === 'Escape') closeMenu();
+    }
+
+    function closeMenu() {
+      menu.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('click', onOutsideClick);
+      document.removeEventListener('keydown', onKeydown);
+    }
+
+    function openMenu() {
+      menu.classList.add('open');
+      btn.setAttribute('aria-expanded', 'true');
+      document.addEventListener('click', onOutsideClick);
+      document.addEventListener('keydown', onKeydown);
+    }
+
+    btn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      if (menu.classList.contains('open')) closeMenu(); else openMenu();
+    });
+
+    [
+      { label: 'Update Now (Manual)', action: handleManualUpdate },
+      { label: 'Bookmarked', action: function () { window.location.hash = '#/gespeichert'; } },
+      { label: 'Settings', action: function () { window.location.hash = '#/themen'; } }
+    ].forEach(function (item) {
+      var el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'dropdown-item';
+      el.setAttribute('role', 'menuitem');
+      el.textContent = item.label;
+      el.addEventListener('click', function () {
+        closeMenu();
+        item.action();
+      });
+      menu.appendChild(el);
+    });
+
+    wrap.appendChild(btn);
+    wrap.appendChild(menu);
+    return wrap;
+  }
+
   function isoToday() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -749,7 +914,13 @@
     }
     eyebrowRow.appendChild(left);
 
-    if (onRefresh) eyebrowRow.appendChild(makeRefreshButton(onRefresh));
+    if (onRefresh) {
+      var actions = document.createElement('div');
+      actions.className = 'header-actions';
+      actions.appendChild(makeRefreshButton(onRefresh));
+      actions.appendChild(makeMenuButton());
+      eyebrowRow.appendChild(actions);
+    }
 
     wrap.appendChild(eyebrowRow);
 

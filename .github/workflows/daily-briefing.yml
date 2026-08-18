@@ -5,7 +5,16 @@ on:
     # 04:00 UTC = 05:00 or 06:00 Europe/Zurich depending on DST — well
     # before the 06:30 local read time either way.
     - cron: "0 4 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "full = (re)write today's post; merge = only append sections not already in today's post"
+        required: false
+        type: choice
+        default: full
+        options:
+          - full
+          - merge
 
 permissions:
   contents: write
@@ -17,6 +26,8 @@ concurrency:
 jobs:
   generate:
     runs-on: ubuntu-latest
+    env:
+      BRIEFING_MODE: ${{ github.event.inputs.mode || 'full' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -40,6 +51,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "Daily briefing $(date -u +%F)"
+            git commit -m "Daily briefing $(date -u +%F) (${BRIEFING_MODE:-full})"
             git push
           fi
