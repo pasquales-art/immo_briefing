@@ -7,7 +7,7 @@ compatibility_date = "2026-01-01"
 # deploys automatically via .github/workflows/deploy-worker.yml.
 [[kv_namespaces]]
 binding = "SETTINGS"
-id = "4790165c84b417c57f84ae2e6d4e22bf"
+id = "f3a5ac3c639845d5b09b112086ed7646"
 
 [vars]
 ALLOWED_ORIGIN = "https://pasquales-art.github.io"
