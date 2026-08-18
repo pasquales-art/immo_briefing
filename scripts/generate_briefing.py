@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 """Daily briefing generator.
 
-Downloads the newest PDF from SOURCE_URL, has Claude read it, research
-related Swiss-media coverage, and write it up in the app's Markdown
-convention (a leading blockquote as "Kurzfassung", then `## Eyebrow` /
-`### Headline` / paragraph / links sections), and writes
-docs/posts/<date>.md plus a matching docs/posts/index.json entry.
+Reads the newest SFP "Soupe du Jour" PDF, has Claude research a fixed
+checklist of Swiss real-estate/economy/politics topics via web search,
+and writes it up in the app's Markdown convention (a leading blockquote
+as "Kurzfassung", then `## Eyebrow` / `### Headline` / paragraph / link
+sections, ordered by how newsworthy each topic is today — not a fixed
+order, and topics with nothing to report are dropped or cut to one
+sentence). Writes docs/posts/<date>.md plus a matching
+docs/posts/index.json entry.
+
+On Sundays, an extra "## Wochenrückblick" section is added, built from
+the last 7 days of already-published posts.
 
 Run manually with:  ANTHROPIC_API_KEY=... python scripts/generate_briefing.py
 
@@ -47,19 +53,24 @@ POSTS_DIR = REPO_ROOT / "docs" / "posts"
 INDEX_PATH = POSTS_DIR / "index.json"
 TZ = ZoneInfo("Europe/Zurich")
 MODEL = "claude-opus-5"
+WEEKLY_CONTEXT_DAYS = 7
 
-# Swiss outlets Claude is allowed to pull related-coverage links from via
-# web search. Edit freely — this is deliberately a starting set, not
-# exhaustive ("und alle weiteren deutschweizer medien" from the brief).
+# Swiss outlets Claude is allowed to pull links from via web search, in the
+# priority order from the brief: NZZ first, then Inside Paradeplatz / Tsüri,
+# then the rest. (SFP itself isn't a search domain — its PDF text is given
+# directly.) Edit freely to add more.
 ALLOWED_NEWS_DOMAINS = [
     "nzz.ch",
-    "tagesanzeiger.ch",
-    "handelszeitung.ch",
-    "fuw.ch",
-    "cash.ch",
-    "20min.ch",
+    "insideparadeplatz.ch",
     "tsri.ch",
+    "tagesanzeiger.ch",
+    "fuw.ch",
+    "bilanz.ch",
+    "handelszeitung.ch",
+    "20min.ch",
+    "cash.ch",
     "watson.ch",
+    "snb.ch",
 ]
 
 DATE_PATTERNS = [
@@ -67,56 +78,101 @@ DATE_PATTERNS = [
     re.compile(r"(\d{2})[-_.](\d{2})[-_.](20\d{2})"),  # 17-08-2026
 ]
 
-SYSTEM_PROMPT = """\
-Du bist Redaktor für ein tägliches Morgenbriefing (Schweizer Publikum, \
-professionell, ruhig, sachlich — kein Boulevard-Ton).
+SYSTEM_PROMPT_TEMPLATE = """\
+Du bist Redaktor für ein tägliches Schweizer Immobilien- und \
+Wirtschafts-Morgenbriefing. Zielgruppe: professionell, hohe Ansprüche an \
+Informationsqualität. Ton: ruhig, sachlich, Schweizer Hochdeutsch — kein \
+Boulevard, keine Übertreibungen.
 
-Dir wird der Rohtext eines PDF-Dokuments gegeben. Fasse seinen tatsächlichen \
-Inhalt sachlich zusammen und strukturiere ihn in 2 bis 5 thematische \
-Abschnitte, die sich natürlich aus dem Dokument ergeben — erfinde keine \
-Themen wie Immobilienmarkt/Kapitalmarkt, wenn das Dokument etwas anderes \
-behandelt. Schreibe auf Deutsch.
+UMFANG: 400–700 Wörter für den Tagesteil (ohne Wochenrückblick, falls \
+vorhanden). Kompakt schreiben, nicht künstlich strecken.
 
-ZUSÄTZLICHE RECHERCHE (via Websuche):
-Suche für jeden Abschnitt gezielt nach höchstens einem passenden, aktuellen \
-Artikel (idealerweise vom selben oder Vortag) bei einem Schweizer Medium \
-zum gleichen Thema. NZZ ist die bevorzugte Quelle, wenn sie das Thema \
-abdeckt; sonst ein anderes Schweizer Medium aus der erlaubten Domain-Liste. \
-Verlinke einen gefundenen Artikel als eigene Zeile direkt nach dem \
-Fliesstext im Format "[Medium: Artikeltitel](URL)" (z.B. \
-"[NZZ: Immobilienpreise steigen weiter](https://www.nzz.ch/...)"). Nutze \
-NUR echte URLs aus deinen Suchergebnissen — erfinde niemals einen Link oder \
-Titel. Wenn kein passender Artikel gefunden wird, lasse die Zeile ganz weg. \
-Berichte dieselbe zugrundeliegende Story/denselben Artikel nicht in \
-mehreren Abschnitten — pro Thema/Story maximal eine Erwähnung.
+THEMEN-PRÜFLISTE (für jedes prüfen: gibt es heute/gestern echte, konkrete \
+News dazu?):
+1. Leitzinsen & Geldpolitik (SNB/EZB/Fed, SARON, Hypozinsen)
+2. Immobilienmarkt Schweiz
+3. Mietrecht & Baurecht Schweiz
+4. Kapitalmarkt mit Immobilien-Fokus
+5. SFP Soupe du Jour (Inhalt wird dir unten als Text gegeben)
+6. Wohnpolitik Schweiz (national/kantonal)
+7. Kantonale Wirtschaftspolitik
+8. Politik Stadt Zürich (inkl. Wohnpolitik)
+9. Verkehrspolitik
+10. Schweizer Volkswirtschaft & Arbeitsmarkt (inkl. Meinungen/Kommentare)
+11. Weltgeschehen kompakt (grosse Titelseiten-Themen, max. 2–3 Sätze)
 
-Füge KEINE eigene "Quelle"-Zeile für das PDF-Dokument selbst hinzu — das \
-übernimmt das aufrufende Programm automatisch.
+REGELN:
+- Nur Themen mit echten, aktuellen News bekommen einen vollen Abschnitt. \
+Themen ohne Neuigkeiten heute: ganz weglassen, oder — nur falls \
+irgendetwas Erwähnenswertes vorliegt — in einem knappen Satz abhandeln.
+- Reihenfolge der Abschnitte nach TAGESRELEVANZ (wichtigstes/aktuellstes \
+zuerst). Die Liste oben ist eine Prüfliste, kein Ranking und keine feste \
+Reihenfolge für den Output.
+- Jeder volle Abschnitt braucht mindestens einen echten Link. \
+Ein-Satz-Abschnitte dürfen ohne Link auskommen, wenn kein guter Beleg \
+existiert.
+- QUELLEN-PRIORITÄT für Links: 1. NZZ (bevorzugt — auch wenn Paywall: nur \
+Titel/Snippet aus der Websuche zitieren, niemals versuchen, den \
+Volltext hinter der Paywall abzurufen), 2. SFP Soupe du Jour (oft \
+Volltext ohne Paywall), 3. Inside Paradeplatz / Tsüri.ch, 4. weitere \
+seriöse Schweizer Medien (Tages-Anzeiger, Finanz und Wirtschaft, Bilanz, \
+Handelszeitung, 20 Minuten, cash, watson). Keine automatisierten \
+Paywall-Abrufe — nutze ausschliesslich, was die Websuche an \
+Titel/Snippet/URL liefert.
+- Für den Abschnitt "SFP Soupe du Jour" fügst du selbst KEINEN Link \
+hinzu — das übernimmt das aufrufende Programm automatisch mit dem \
+echten PDF-Link.
+- Erfinde nie einen Link, Titel oder Fakt. Findest du zu einem Thema \
+nichts Verlässliches, lass den Abschnitt weg oder kürze ihn auf einen \
+Satz ohne Link.
+- Dieselbe zugrundeliegende Story/denselben Artikel nicht in mehreren \
+Abschnitten mehrfach zitieren.
+{weekly_instruction}
 
 Antworte NUR in exakt diesem Format, ohne zusätzliche Erklärungen davor \
 oder danach:
 
 TITLE: <kurzer, prägnanter Titel, max. 80 Zeichen>
 ---
-> <Kurzfassung des gesamten Inhalts in 2-3 Sätzen>
+> <Kurzfassung des gesamten Briefings in 2-3 Sätzen>
 
-## <Eyebrow-Label Abschnitt 1, 1-3 Wörter, z.B. eine Kategorie oder ein Thema>
-### <Prägnante Schlagzeile für Abschnitt 1>
-<Fliesstext, 2-4 Sätze>
+## <Eyebrow-Label, 1-3 Wörter>
+### <Prägnante Schlagzeile>
+<Fliesstext>
 [<Medium>: <Artikeltitel>](<URL>)
 
-## <Eyebrow-Label Abschnitt 2>
-### <Schlagzeile Abschnitt 2>
-<Fliesstext>
+(usw. für weitere Abschnitte — so viele wie es heute relevante Themen \
+gibt, in Reihenfolge der Tagesrelevanz){weekly_section_format}
 
-(usw. für weitere Abschnitte, so viele wie inhaltlich sinnvoll sind)
-
-Regeln:
-- Der Blockquote (Kurzfassung) kommt genau einmal, direkt nach der TITLE-Zeile.
-- Jeder Abschnitt beginnt mit "## " (Eyebrow) gefolgt von "### " (Headline).
-- Der Recherche-Link (falls vorhanden) ist die letzte Zeile des Abschnitts.
-- Kein H1, keine weitere Formatierung ausserhalb der oben gezeigten Struktur.
+Regeln zum Format:
+- Der Blockquote (Kurzfassung) kommt genau einmal, direkt nach der \
+TITLE-Zeile.
+- Jeder Abschnitt beginnt mit "## " (Eyebrow) gefolgt von "### " \
+(Headline).
+- Der Link (falls vorhanden) ist die letzte Zeile des Abschnitts.
+- Kein H1, keine weitere Formatierung ausserhalb der oben gezeigten \
+Struktur.
 """
+
+WEEKLY_INSTRUCTION = """\
+- Heute ist Sonntag: Füge nach den Tagesabschnitten einen zusätzlichen \
+Abschnitt "## Wochenrückblick" hinzu (200–300 Wörter): fasse die \
+wichtigsten Entwicklungen der vergangenen 7 Tage zusammen (Kontext der \
+letzten Briefings wird dir unten gegeben) und schliesse mit einem \
+kurzen Ausblick auf die kommende Woche."""
+
+WEEKLY_SECTION_FORMAT = """
+
+## Wochenrückblick
+### <Schlagzeile für den Wochenrückblick>
+<Fliesstext, 200-300 Wörter, endet mit einem kurzen Ausblick>"""
+
+
+def build_system_prompt(is_weekly):
+    return SYSTEM_PROMPT_TEMPLATE.format(
+        weekly_instruction=WEEKLY_INSTRUCTION if is_weekly else "",
+        weekly_section_format=WEEKLY_SECTION_FORMAT if is_weekly else "",
+    )
 
 
 def find_download_links(html, base_url):
@@ -180,26 +236,54 @@ def fetch_pdf_text(url):
     return "\n\n".join((page.extract_text() or "") for page in reader.pages)
 
 
-def summarize(pdf_text, is_weekly):
+def load_index():
+    if INDEX_PATH.exists():
+        return json.loads(INDEX_PATH.read_text(encoding="utf-8"))
+    return []
+
+
+def load_recent_posts(before_date, days=WEEKLY_CONTEXT_DAYS):
+    """Concatenated markdown of published posts strictly before `before_date`,
+    within the last `days` days, oldest first — used as Wochenrückblick context.
+    """
+    posts = []
+    for e in load_index():
+        try:
+            d = datetime.strptime(e["date"], "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        if d < before_date and (before_date - d).days <= days:
+            path = POSTS_DIR / e["file"]
+            if path.exists():
+                posts.append((d, f"### {e['date']} — {e['title']}\n\n{path.read_text(encoding='utf-8')}"))
+    posts.sort(key=lambda p: p[0])
+    return "\n\n---\n\n".join(text for _, text in posts)
+
+
+def summarize(pdf_text, is_weekly, weekly_context=""):
     client = anthropic.Anthropic()
-    user_note = (
-        "Hinweis: Dies ist eine Wochenend-/Wochenrückblick-Ausgabe.\n\n"
-        if is_weekly
-        else ""
-    )
+    system_prompt = build_system_prompt(is_weekly)
+
+    user_parts = [f"SFP SOUPE DU JOUR — PDF-Inhalt (Thema 5 der Prüfliste):\n\n{pdf_text}"]
+    if is_weekly and weekly_context:
+        user_parts.append(
+            "KONTEXT FÜR WOCHENRÜCKBLICK — Briefings der letzten "
+            f"{WEEKLY_CONTEXT_DAYS} Tage:\n\n" + weekly_context
+        )
+
     response = client.messages.create(
         model=MODEL,
-        max_tokens=8192,
-        system=SYSTEM_PROMPT,
+        max_tokens=16000,
+        system=system_prompt,
         tools=[
             {
                 "type": "web_search_20260209",
                 "name": "web_search",
-                "max_uses": 10,
+                "max_uses": 20,
                 "allowed_domains": ALLOWED_NEWS_DOMAINS,
             }
         ],
-        messages=[{"role": "user", "content": user_note + pdf_text}],
+        messages=[{"role": "user", "content": "\n\n---\n\n".join(user_parts)}],
     )
     text = "".join(block.text for block in response.content if block.type == "text")
 
@@ -230,14 +314,17 @@ def split_sections(markdown):
 
 
 def append_source_links(markdown, pdf_url):
-    """Appends the deterministic "[📰 Quelle](pdf_url)" line to the end of
-    every section — always the real, known-good PDF URL, never something
-    the model could get wrong or omit.
+    """Appends the deterministic "[📰 Quelle](pdf_url)" line to the SFP
+    Soupe du Jour section only — always the real, known-good PDF URL,
+    never something the model could get wrong or omit. Other sections
+    carry whatever real research links the model found via web search.
     """
     intro, sections = split_sections(markdown)
     out = []
     for eyebrow, block in sections:
-        block = block.rstrip() + f"\n\n[📰 Quelle]({pdf_url})\n"
+        low = eyebrow.lower()
+        if "soupe" in low or low.strip() == "sfp":
+            block = block.rstrip() + f"\n\n[📰 Quelle]({pdf_url})\n"
         out.append((eyebrow, block))
     body = intro + "\n\n" + "\n".join(block for _, block in out)
     return body.strip() + "\n"
@@ -263,12 +350,6 @@ def merge_markdown(existing_md, new_md):
 
     merged = existing_intro + "\n\n" + "\n".join(block for _, block in merged_sections)
     return merged.strip() + "\n", added
-
-
-def load_index():
-    if INDEX_PATH.exists():
-        return json.loads(INDEX_PATH.read_text(encoding="utf-8"))
-    return []
 
 
 def save_index(entries):
@@ -300,7 +381,11 @@ def main():
         print("Extracted PDF text is empty — aborting.", file=sys.stderr)
         sys.exit(1)
 
-    title, body_md = summarize(text, is_weekly)
+    weekly_context = load_recent_posts(today) if is_weekly else ""
+    if is_weekly:
+        print(f"Sunday — building Wochenrückblick from {len(weekly_context)} chars of recent-post context.")
+
+    title, body_md = summarize(text, is_weekly, weekly_context)
     body_md = append_source_links(body_md, pdf_url)
 
     POSTS_DIR.mkdir(parents=True, exist_ok=True)
