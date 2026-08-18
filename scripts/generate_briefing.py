@@ -8,13 +8,15 @@ and writes docs/posts/<date>.md plus a matching docs/posts/index.json entry.
 
 Run manually with:  ANTHROPIC_API_KEY=... python scripts/generate_briefing.py
 
-NOTE on the scraping step: the sandbox this script was written in could not
-reach sfp.ch (network egress was blocked there), so `find_pdf_links` /
-`pick_newest_pdf` below were written against the *general* shape of a page
-that links out to dated PDFs, not against sfp.ch's actual markup. The first
-real run's log line ("Using PDF: ... (<strategy>)") shows which heuristic
-fired — check it against the real page and adjust the two functions if it
-picked the wrong file.
+NOTE on the scraping step: the sandbox this script was written in has no
+network access to sfp.ch (an unrelated sandbox-only restriction — the GitHub
+Actions runner that actually executes this has normal internet access), so
+`find_download_links` / `pick_newest_pdf` below are untested against the
+live page. They're written for TYPO3's `eID=download&t=f&f=<id>&token=...`
+download links (confirmed as this site's actual mechanism) plus plain
+`*.pdf` hrefs as a fallback. The first real run's log line
+("Using PDF: ... (<strategy>)") shows which heuristic fired and which URL
+it picked — check it against the real page and adjust if it picked wrong.
 """
 
 import io
@@ -78,39 +80,57 @@ wird, darfst du sie als "[Linktext →](URL)" ergänzen — sonst weglassen.
 """
 
 
-def find_pdf_links(html, base_url):
-    hrefs = re.findall(r'href="([^"]+\.pdf)"', html, re.I)
-    seen = []
-    for h in hrefs:
-        u = urljoin(base_url, h)
-        if u not in seen:
-            seen.append(u)
-    return seen
+def find_download_links(html, base_url):
+    """Find candidate document links: plain `*.pdf` hrefs, and TYPO3's
+    `eID=download&...` handler (this site's actual mechanism — a link like
+    `index.php?eID=download&t=f&f=17902&token=...`, no `.pdf` in the URL at
+    all). Returns (url, context_text) pairs, where context_text is the
+    anchor tag plus a little surrounding HTML with tags stripped, used to
+    sniff a date/label near the link since the eID URLs carry no filename.
+    """
+    pattern = re.compile(
+        r'<a\b[^>]*href="([^"]+(?:\.pdf|eID=download[^"]*))"[^>]*>(.*?)</a>',
+        re.I | re.S,
+    )
+    results = []
+    seen = set()
+    for m in pattern.finditer(html):
+        href, inner = m.group(1), m.group(2)
+        url = urljoin(base_url, href.replace("&amp;", "&"))
+        if url in seen:
+            continue
+        seen.add(url)
+        window = html[max(0, m.start() - 150):m.end() + 150]
+        context = re.sub(r"<[^>]+>", " ", inner + " " + window)
+        context = re.sub(r"\s+", " ", context).strip()
+        results.append((url, context))
+    return results
 
 
-def extract_date_from_url(url):
-    name = url.rsplit("/", 1)[-1]
-    for pat in DATE_PATTERNS:
-        m = pat.search(name)
-        if not m:
-            continue
-        groups = m.groups()
-        y, mo, d = groups if len(groups[0]) == 4 else (groups[2], groups[1], groups[0])
-        try:
-            return datetime(int(y), int(mo), int(d))
-        except ValueError:
-            continue
+def extract_date(url, context_text):
+    for source in (url.rsplit("/", 1)[-1], context_text):
+        for pat in DATE_PATTERNS:
+            m = pat.search(source)
+            if not m:
+                continue
+            groups = m.groups()
+            y, mo, d = groups if len(groups[0]) == 4 else (groups[2], groups[1], groups[0])
+            try:
+                return datetime(int(y), int(mo), int(d))
+            except ValueError:
+                continue
     return None
 
 
 def pick_newest_pdf(links):
-    dated = [(extract_date_from_url(u), u) for u in links]
+    """`links` is a list of (url, context_text) pairs from find_download_links."""
+    dated = [(extract_date(u, ctx), u) for u, ctx in links]
     dated = [d for d in dated if d[0] is not None]
     if dated:
         dated.sort(key=lambda d: d[0], reverse=True)
-        return dated[0][1], "picked by date found in filename"
+        return dated[0][1], "picked by date found in the link URL or its surrounding text"
     if links:
-        return links[0], "no dated filenames found on the page; used the first PDF link in document order"
+        return links[0][0], "no date found near any link; used the first document link in page order"
     return None, None
 
 
@@ -163,7 +183,7 @@ def main():
 
     print(f"Fetching {SOURCE_URL} ...")
     html = requests.get(SOURCE_URL, timeout=30).text
-    links = find_pdf_links(html, SOURCE_URL)
+    links = find_download_links(html, SOURCE_URL)
     pdf_url, strategy = pick_newest_pdf(links)
     if not pdf_url:
         print("No PDF link found on the source page — aborting.", file=sys.stderr)
