@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans+Condensed:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; box-sizing: border-box; }
+  * { box-sizing: border-box; }
+  ::-webkit-scrollbar { display: none; }
+</style>
+</helmet>
+<div style="min-height:100vh;background:oklch(94% 0.004 95);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:48px 24px;font-family:'Inter',sans-serif;">
+  <div style="text-align:center;max-width:420px;">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.1em;color:oklch(48% 0.005 95);text-transform:uppercase;margin-bottom:6px;">Prototyp</div>
+    <div style="font-size:18px;font-weight:600;color:oklch(22% 0.005 95);margin-bottom:4px;">Swiss Real Estate Morning Brief</div>
+    <div style="font-size:13px;color:oklch(48% 0.005 95);line-height:1.5;">Tippe unten auf Today / Archiv / Themen · Farbe, Schrift und Dichte im Tweaks-Panel anpassen</div>
+  </div>
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ dark }}" hint-size="402,874">
+    <div style="position:relative;height:100%;display:flex;flex-direction:column;background:{{ bg }};">
+      <div style="flex:1;overflow:auto;padding:70px 22px 30px;">
+        <sc-if value="{{ isToday }}" hint-placeholder-val="{{ true }}">
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.12em;color:{{ muted }};text-transform:uppercase;display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+              <span>{{ dateStr }}</span>
+              <sc-if value="{{ isSunday }}">
+                <span style="padding:2px 7px;border:1px solid {{ border }};border-radius:3px;color:{{ accent }};">Mit Wochenrückblick</span>
+              </sc-if>
+            </div>
+            <div style="font-family:{{ displayStack }};font-weight:800;font-size:{{ dateSize }}px;line-height:0.95;letter-spacing:-0.02em;color:{{ fg }};margin-bottom:24px;">{{ weekdayLabel }}</div>
+            <div style="height:1px;background:{{ border }};margin-bottom:24px;"></div>
+            <div style="border:1px solid {{ border }};border-radius:3px;padding:18px 16px;margin-bottom:{{ sectionGap }}px;background:{{ cardBg }};">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.12em;color:{{ accent }};text-transform:uppercase;margin-bottom:10px;">Kurzfassung</div>
+              <p style="font-family:{{ bodyStack }};font-size:15px;line-height:1.55;color:{{ fg }};margin:0;">Der Kapitalmarkt bleibt ruhig, während sich der Immobilienmarkt in den Agglomerationen weiter verdichtet. Der Bundesrat kündigt neue Leitlinien zur Raumplanung an — Details im Politik-Abschnitt.</p>
+            </div>
+            <sc-for list="{{ sections }}" as="sec" hint-placeholder-count="4">
+              <div style="margin-bottom:{{ sectionGap }}px;">
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.12em;color:{{ muted }};text-transform:uppercase;padding-top:16px;border-top:1px solid {{ border }};margin-bottom:10px;">{{ sec.eyebrow }}</div>
+                <h2 style="font-family:{{ bodyStack }};font-weight:600;font-size:19px;line-height:1.3;color:{{ fg }};margin:0 0 8px;">{{ sec.h2 }}</h2>
+                <p style="font-family:{{ bodyStack }};font-size:15.5px;line-height:1.6;color:{{ fg }};margin:0 0 10px;">{{ sec.body }}</p>
+                <sc-if value="{{ sec.link }}">
+                  <a href="#" style="font-family:{{ bodyStack }};font-size:14px;color:{{ accent }};text-decoration:none;font-weight:500;">{{ sec.link }} →</a>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ isArchiv }}">
+          <div>
+            <div style="font-family:{{ displayStack }};font-weight:800;font-size:32px;color:{{ fg }};margin-bottom:6px;">Archiv</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:{{ muted }};letter-spacing:0.08em;text-transform:uppercase;margin-bottom:22px;">Alle Ausgaben</div>
+            <sc-for list="{{ archiveItems }}" as="item" hint-placeholder-count="8">
+              <div onClick="{{ goToday }}" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0;border-bottom:1px solid {{ border }};cursor:pointer;">
+                <div style="display:flex;flex-direction:column;gap:4px;min-width:0;">
+                  <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:{{ muted }};letter-spacing:0.04em;">{{ item.date }}</div>
+                  <div style="font-family:{{ bodyStack }};font-size:15px;font-weight:500;color:{{ fg }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.title }}</div>
+                </div>
+                <sc-if value="{{ item.isWeek }}">
+                  <span style="flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:0.08em;color:{{ accent }};border:1px solid {{ accent }};border-radius:3px;padding:3px 6px;text-transform:uppercase;">Woche</span>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ isThemen }}">
+          <div>
+            <div style="font-family:{{ displayStack }};font-weight:800;font-size:32px;color:{{ fg }};margin-bottom:22px;">Themen</div>
+            <div style="border:1px dashed {{ border }};border-radius:4px;padding:22px 18px;margin-bottom:24px;">
+              <p style="font-family:{{ bodyStack }};font-size:14.5px;line-height:1.6;color:{{ muted }};margin:0;">Themen-Einstellungen folgen in einer späteren Version — hier wirst du wählen können, welche Kategorien im täglichen Briefing erscheinen.</p>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              <sc-for list="{{ topics }}" as="t" hint-placeholder-count="4">
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.04em;color:{{ muted }};border:1px solid {{ border }};border-radius:100px;padding:7px 13px;opacity:0.6;">{{ t }}</span>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+      <div style="position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-around;align-items:center;padding:10px 8px 26px;background:{{ navBg }};backdrop-filter:blur(14px) saturate(180%);-webkit-backdrop-filter:blur(14px) saturate(180%);border-top:1px solid {{ border }};">
+        <div onClick="{{ goToday }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:4px 14px;">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="2.5" width="14" height="15" rx="1.5" stroke="{{ navTodayColor }}" stroke-width="1.6"/><line x1="6" y1="7" x2="14" y2="7" stroke="{{ navTodayColor }}" stroke-width="1.6"/></svg>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.04em;color:{{ navTodayColor }};">Today</span>
+        </div>
+        <div onClick="{{ goArchiv }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:4px 14px;">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><line x1="3" y1="5" x2="17" y2="5" stroke="{{ navArchivColor }}" stroke-width="1.6"/><line x1="3" y1="10" x2="17" y2="10" stroke="{{ navArchivColor }}" stroke-width="1.6"/><line x1="3" y1="15" x2="17" y2="15" stroke="{{ navArchivColor }}" stroke-width="1.6"/></svg>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.04em;color:{{ navArchivColor }};">Archiv</span>
+        </div>
+        <div onClick="{{ goThemen }}" style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:4px 14px;">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="6" height="6" rx="1" stroke="{{ navThemenColor }}" stroke-width="1.6"/><rect x="11" y="3" width="6" height="6" rx="1" stroke="{{ navThemenColor }}" stroke-width="1.6"/><rect x="3" y="11" width="6" height="6" rx="1" stroke="{{ navThemenColor }}" stroke-width="1.6"/><rect x="11" y="11" width="6" height="6" rx="1" stroke="{{ navThemenColor }}" stroke-width="1.6"/></svg>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:0.04em;color:{{ navThemenColor }};">Themen</span>
+        </div>
+      </div>
+    </div>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:620,&quot;height&quot;:980},&quot;darkMode&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;accentColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#2A4DA0&quot;,&quot;options&quot;:[&quot;#2A4DA0&quot;,&quot;#1F3A66&quot;,&quot;#35507A&quot;,&quot;#4A6FA5&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;displayFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Archivo&quot;,&quot;options&quot;:[&quot;Archivo&quot;,&quot;Space Grotesk&quot;,&quot;IBM Plex Sans Condensed&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Typografie&quot;},&quot;bodyFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;IBM Plex Sans&quot;,&quot;options&quot;:[&quot;Inter&quot;,&quot;IBM Plex Sans&quot;,&quot;Source Serif 4&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Typografie&quot;},&quot;density&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Kompakt&quot;,&quot;options&quot;:[&quot;Kompakt&quot;,&quot;Standard&quot;,&quot;Gross&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Layout&quot;}}">
+class Component extends DCLogic {
+  state = { route: 'today' };
+
+  componentDidMount() {
+    const h = (window.location.hash || '').replace('#/', '').replace('#', '');
+    if (h === 'archiv' || h === 'themen') this.setState({ route: h });
+  }
+
+  go(route) {
+    this.setState({ route });
+    try { window.location.hash = route === 'today' ? '#/' : '#/' + route; } catch (e) {}
+  }
+
+  renderVals() {
+    const dark = this.props.darkMode ?? false;
+    let accent = this.props.accentColor ?? '#2A4DA0';
+    if (dark) accent = `color-mix(in oklch, ${accent} 62%, white 38%)`;
+    const displayFont = this.props.displayFont ?? 'Archivo';
+    const bodyFont = this.props.bodyFont ?? 'Inter';
+    const density = this.props.density ?? 'Standard';
+    const route = this.state.route;
+
+    const displayStack = displayFont === 'Space Grotesk' ? '"Space Grotesk", sans-serif'
+      : displayFont === 'IBM Plex Sans Condensed' ? '"IBM Plex Sans Condensed", sans-serif'
+      : '"Archivo", sans-serif';
+    const bodyStack = bodyFont === 'IBM Plex Sans' ? '"IBM Plex Sans", sans-serif'
+      : bodyFont === 'Source Serif 4' ? '"Source Serif 4", serif'
+      : '"Inter", sans-serif';
+
+    const dateSize = density === 'Kompakt' ? 50 : density === 'Gross' ? 86 : 66;
+    const sectionGap = density === 'Kompakt' ? 26 : density === 'Gross' ? 42 : 34;
+
+    const bg = dark ? 'oklch(18% 0.01 250)' : 'oklch(98% 0.005 95)';
+    const fg = dark ? 'oklch(92% 0.005 95)' : 'oklch(20% 0.01 95)';
+    const muted = dark ? 'oklch(65% 0.01 95)' : 'oklch(46% 0.01 95)';
+    const border = dark ? 'oklch(32% 0.012 95)' : 'oklch(88% 0.005 95)';
+    const cardBg = dark ? 'oklch(23% 0.012 250)' : '#ffffff';
+    const navBg = dark ? 'oklch(20% 0.012 250 / 0.92)' : 'oklch(98% 0.005 95 / 0.92)';
+
+    const today = new Date(2026, 7, 18);
+    const days = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+    const dow = today.getDay();
+    const isSunday = dow === 0;
+    const dateStr = String(today.getDate()).padStart(2, '0') + '.' + String(today.getMonth() + 1).padStart(2, '0') + '.' + today.getFullYear();
+
+    const titles = [
+      'Renditeliegenschaften: Nachfrage in Zürich ungebrochen',
+      'SNB-Sitzung: Leitzins bleibt unverändert',
+      'Bundesrat eröffnet Vernehmlassung zur Zweitwohnungsverordnung',
+      'KOF-Barometer steigt leicht',
+      'Hypothekarzinsen: Wettbewerb unter Anbietern nimmt zu',
+      'Genf: Rückgang bei Baugesuchen im Wohnsegment',
+      'Immobilienfonds verzeichnen stabile Mittelzuflüsse',
+      'Raumplanung: Kantone uneinig über Verdichtungsvorgaben',
+      'Büroflächen: Leerstand in Basel weiter rückläufig',
+      'Vorsorgewerke erhöhen Immobilienquote',
+    ];
+    const archiveItems = [];
+    for (let i = 1; i <= 10; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      archiveItems.push({
+        date: String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + d.getFullYear(),
+        title: titles[(i - 1) % titles.length],
+        isWeek: d.getDay() === 0,
+      });
+    }
+
+    const sections = [
+      { eyebrow: 'Immobilienmarkt', h2: 'Zürich und Genf: Preise für Renditeliegenschaften steigen weiter', body: 'Institutionelle Käufer bleiben aktiv, während das Angebot an Kernlagen knapp bleibt. Analysten erwarten für das zweite Halbjahr eine moderate Verlangsamung des Preiswachstums.', link: 'Zur Marktstudie' },
+      { eyebrow: 'Kapitalmarkt', h2: 'SNB hält Leitzins, Hypothekarzinsen bleiben tief', body: 'Die Nationalbank signalisiert Zurückhaltung bei weiteren Zinsschritten. Für Bauträger bleibt die Finanzierungsumgebung damit vorerst günstig.', link: '' },
+      { eyebrow: 'Politik', h2: 'Bundesrat stellt revidiertes Raumplanungsgesetz vor', body: 'Die Vorlage sieht strengere Vorgaben zur Innenverdichtung vor. Kantone und Gemeinden erhalten mehr Spielraum bei der Umsetzung, was bei Verbänden auf gemischte Reaktionen stösst.', link: 'Zur Vernehmlassung' },
+      { eyebrow: 'Wirtschaft', h2: 'KOF-Barometer signalisiert moderates Wachstum', body: 'Die Konjunkturaussichten für die Schweiz bleiben stabil. Die Bauwirtschaft profitiert von anhaltend hoher Nachfrage nach Wohnraum in den urbanen Zentren.', link: '' },
+    ];
+
+    const navTodayColor = route === 'today' ? accent : muted;
+    const navArchivColor = route === 'archiv' ? accent : muted;
+    const navThemenColor = route === 'themen' ? accent : muted;
+
+    return {
+      dark, accent, displayStack, bodyStack, dateSize, sectionGap,
+      bg, fg, muted, border, cardBg, navBg,
+      weekdayLabel: days[dow].toUpperCase(), isSunday, dateStr,
+      sections, archiveItems, topics: ['Immobilienmarkt', 'Kapitalmarkt', 'Politik', 'Wirtschaft'],
+      isToday: route === 'today', isArchiv: route === 'archiv', isThemen: route === 'themen',
+      goToday: () => this.go('today'), goArchiv: () => this.go('archiv'), goThemen: () => this.go('themen'),
+      navTodayColor, navArchivColor, navThemenColor,
+    };
+  }
+}
+</script>
+</body>
+</html>
