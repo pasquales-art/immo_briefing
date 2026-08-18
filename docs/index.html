@@ -81,7 +81,7 @@
 
   main {
     flex: 1;
-    padding: calc(env(safe-area-inset-top, 0px) + 26px) 20px calc(env(safe-area-inset-bottom, 0px) + 100px);
+    padding: calc(env(safe-area-inset-top, 0px) + 8px) 20px calc(env(safe-area-inset-bottom, 0px) + 100px);
   }
 
   a { color: var(--accent); }
@@ -535,6 +535,10 @@
     box-sizing: border-box;
   }
 
+  .settings-input[type="time"] {
+    width: 110px;
+  }
+
   .settings-actions {
     display: flex;
     gap: 8px;
@@ -591,7 +595,7 @@
     display: flex;
     justify-content: space-around;
     align-items: center;
-    padding: 10px 8px calc(env(safe-area-inset-bottom, 0px) + 14px);
+    padding: 10px 8px calc(env(safe-area-inset-bottom, 0px) + 4px);
     background: var(--nav-bg);
     backdrop-filter: blur(14px) saturate(180%);
     -webkit-backdrop-filter: blur(14px) saturate(180%);
