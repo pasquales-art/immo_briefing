@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Morgenbriefing</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Tägliches Morgenbriefing: Immobilienmarkt, Kapitalmarkt, Politik und Wirtschaft in der Schweiz.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="oklch(98% 0.005 95)" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="oklch(18% 0.01 250)" media="(prefers-color-scheme: dark)">
+
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Morgenbriefing">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: oklch(98% 0.005 95);
+    --fg: oklch(20% 0.01 95);
+    --muted: oklch(46% 0.01 95);
+    --border: oklch(88% 0.005 95);
+    --card-bg: #ffffff;
+    --nav-bg: oklch(98% 0.005 95 / 0.92);
+    --accent: #2A4DA0;
+
+    --font-display: 'Archivo', sans-serif;
+    --font-body: 'IBM Plex Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+
+    --date-size: 50px;
+    --section-gap: 26px;
+
+    color-scheme: light dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: oklch(18% 0.01 250);
+      --fg: oklch(92% 0.005 95);
+      --muted: oklch(65% 0.01 95);
+      --border: oklch(32% 0.012 95);
+      --card-bg: oklch(23% 0.012 250);
+      --nav-bg: oklch(20% 0.012 250 / 0.92);
+      --accent: color-mix(in oklch, #2A4DA0 62%, white 38%);
+    }
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+  }
+
+  body {
+    font-family: var(--font-body);
+    min-height: 100vh;
+    min-height: 100dvh;
+    overscroll-behavior-y: none;
+  }
+
+  #app {
+    max-width: 560px;
+    margin: 0 auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  main {
+    flex: 1;
+    padding: calc(env(safe-area-inset-top, 0px) + 26px) 20px calc(env(safe-area-inset-bottom, 0px) + 100px);
+  }
+
+  a { color: var(--accent); }
+
+  /* ---- Today / post view ---- */
+
+  .eyebrow-row {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .weekly-badge {
+    padding: 2px 7px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--accent);
+  }
+
+  .date-hero {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: var(--date-size);
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    color: var(--fg);
+    margin: 0 0 24px;
+    word-break: break-word;
+  }
+
+  .rule {
+    height: 1px;
+    background: var(--border);
+    margin-bottom: 24px;
+  }
+
+  .kurzfassung {
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 18px 16px;
+    margin-bottom: var(--section-gap);
+    background: var(--card-bg);
+  }
+
+  .kurzfassung-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .kurzfassung p {
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--fg);
+    margin: 0;
+  }
+
+  .brief-section {
+    margin-bottom: var(--section-gap);
+  }
+
+  .brief-section .section-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    margin-bottom: 10px;
+  }
+
+  .brief-section h3 {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 19px;
+    line-height: 1.3;
+    color: var(--fg);
+    margin: 0 0 8px;
+  }
+
+  .brief-section p {
+    font-family: var(--font-body);
+    font-size: 15.5px;
+    line-height: 1.6;
+    color: var(--fg);
+    margin: 0 0 10px;
+  }
+
+  .brief-section a {
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .brief-section a:hover { text-decoration: underline; }
+
+  /* ---- empty state ---- */
+
+  .empty-state {
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    padding: 22px 18px;
+  }
+
+  .empty-state p {
+    font-family: var(--font-body);
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--muted);
+    margin: 0 0 12px;
+  }
+
+  .empty-state p:last-child { margin-bottom: 0; }
+
+  .empty-state a {
+    font-weight: 500;
+  }
+
+  /* ---- Archiv ---- */
+
+  .page-title {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 32px;
+    color: var(--fg);
+    margin: 0 0 6px;
+  }
+
+  .page-subtitle {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 22px;
+  }
+
+  .archive-list { list-style: none; margin: 0; padding: 0; }
+
+  .archive-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .archive-item a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .archive-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .archive-date {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+
+  .archive-title {
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--fg);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .archive-badge {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    padding: 3px 6px;
+    text-transform: uppercase;
+  }
+
+  /* ---- Themen ---- */
+
+  .topic-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .topic-pill {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 7px 13px;
+    opacity: 0.6;
+  }
+
+  /* ---- bottom nav ---- */
+
+  nav.bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-width: 560px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px 8px calc(env(safe-area-inset-bottom, 0px) + 14px);
+    background: var(--nav-bg);
+    backdrop-filter: blur(14px) saturate(180%);
+    -webkit-backdrop-filter: blur(14px) saturate(180%);
+    border-top: 1px solid var(--border);
+  }
+
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 14px;
+    text-decoration: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+  }
+
+  .nav-item.active { color: var(--accent); }
+  .nav-item svg { stroke: currentColor; }
+
+  .nav-label {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.04em;
+    color: currentColor;
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="view" aria-live="polite"></main>
+
+  <nav class="bottom-nav" aria-label="Hauptnavigation">
+    <a class="nav-item" data-route="today" href="#/">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="2.5" width="14" height="15" rx="1.5" stroke-width="1.6"/><line x1="6" y1="7" x2="14" y2="7" stroke-width="1.6"/></svg>
+      <span class="nav-label">Today</span>
+    </a>
+    <a class="nav-item" data-route="archiv" href="#/archiv">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><line x1="3" y1="5" x2="17" y2="5" stroke-width="1.6"/><line x1="3" y1="10" x2="17" y2="10" stroke-width="1.6"/><line x1="3" y1="15" x2="17" y2="15" stroke-width="1.6"/></svg>
+      <span class="nav-label">Archiv</span>
+    </a>
+    <a class="nav-item" data-route="themen" href="#/themen">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="6" height="6" rx="1" stroke-width="1.6"/><rect x="11" y="3" width="6" height="6" rx="1" stroke-width="1.6"/><rect x="3" y="11" width="6" height="6" rx="1" stroke-width="1.6"/><rect x="11" y="11" width="6" height="6" rx="1" stroke-width="1.6"/></svg>
+      <span class="nav-label">Themen</span>
+    </a>
+  </nav>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+(function () {
+  'use strict';
+
+  var view = document.getElementById('view');
+  var navItems = document.querySelectorAll('.nav-item');
+
+  var WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+  var TOPICS = ['Immobilienmarkt', 'Kapitalmarkt', 'Politik', 'Wirtschaft'];
+
+  var indexCache = null;
+
+  function isoToday() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function formatDate(iso) {
+    var parts = iso.split('-');
+    return parts[2] + '.' + parts[1] + '.' + parts[0];
+  }
+
+  function weekdayLabel(iso) {
+    var parts = iso.split('-').map(Number);
+    var d = new Date(parts[0], parts[1] - 1, parts[2]);
+    return WEEKDAYS[d.getDay()].toUpperCase();
+  }
+
+  function escapeHtml(s) {
+    var div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function loadIndex() {
+    if (indexCache) return Promise.resolve(indexCache);
+    return fetch('./posts/index.json', { cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('index.json ' + res.status);
+        return res.json();
+      })
+      .then(function (list) {
+        list.sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+        indexCache = list;
+        return list;
+      });
+  }
+
+  function loadPostMarkdown(item) {
+    return fetch('./posts/' + item.file, { cache: 'no-store' })
+      .then(function (res) {
+        if (!res.ok) throw new Error(item.file + ' ' + res.status);
+        return res.text();
+      });
+  }
+
+  // Splits marked.js output into a kurzfassung box (leading blockquote)
+  // and a list of sections, each starting at an <h2> (eyebrow label),
+  // followed by an <h3> (headline), <p> (body) and optional <a> (link).
+  function renderBriefBody(markdown) {
+    var html = marked.parse(markdown);
+    var tmp = document.createElement('div');
+    tmp.innerHTML = html;
+
+    var frag = document.createDocumentFragment();
+    var kurzfassung = null;
+    var currentSection = null;
+
+    Array.prototype.forEach.call(tmp.childNodes, function (node) {
+      if (node.nodeType !== 1) return;
+      var tag = node.tagName;
+
+      if (tag === 'BLOCKQUOTE' && !kurzfassung) {
+        kurzfassung = document.createElement('div');
+        kurzfassung.className = 'kurzfassung';
+        var label = document.createElement('div');
+        label.className = 'kurzfassung-label';
+        label.textContent = 'Kurzfassung';
+        kurzfassung.appendChild(label);
+        Array.prototype.forEach.call(node.childNodes, function (c) {
+          kurzfassung.appendChild(c.cloneNode(true));
+        });
+        return;
+      }
+
+      if (tag === 'H1') return; // title is carried by the masthead date, not repeated in-body
+
+      if (tag === 'H2') {
+        currentSection = document.createElement('div');
+        currentSection.className = 'brief-section';
+        var eyebrow = document.createElement('div');
+        eyebrow.className = 'section-eyebrow';
+        eyebrow.textContent = node.textContent;
+        currentSection.appendChild(eyebrow);
+        frag.appendChild(currentSection);
+        return;
+      }
+
+      if (tag === 'H3' && currentSection) {
+        var h3 = document.createElement('h3');
+        h3.textContent = node.textContent;
+        currentSection.appendChild(h3);
+        return;
+      }
+
+      var target = currentSection || frag;
+      target.appendChild(node.cloneNode(true));
+    });
+
+    var out = document.createDocumentFragment();
+    if (kurzfassung) out.appendChild(kurzfassung);
+    out.appendChild(frag);
+    return out;
+  }
+
+  function renderMasthead(iso, weekly) {
+    var wrap = document.createElement('div');
+
+    var eyebrowRow = document.createElement('div');
+    eyebrowRow.className = 'eyebrow-row';
+    var dateSpan = document.createElement('span');
+    dateSpan.textContent = formatDate(iso);
+    eyebrowRow.appendChild(dateSpan);
+    if (weekly) {
+      var badge = document.createElement('span');
+      badge.className = 'weekly-badge';
+      badge.textContent = 'Mit Wochenrückblick';
+      eyebrowRow.appendChild(badge);
+    }
+    wrap.appendChild(eyebrowRow);
+
+    var hero = document.createElement('div');
+    hero.className = 'date-hero';
+    hero.textContent = weekdayLabel(iso);
+    wrap.appendChild(hero);
+
+    var rule = document.createElement('div');
+    rule.className = 'rule';
+    wrap.appendChild(rule);
+
+    return wrap;
+  }
+
+  function renderEmptyToday(iso) {
+    var wrap = document.createElement('div');
+    wrap.appendChild(renderMasthead(iso, false));
+
+    var box = document.createElement('div');
+    box.className = 'empty-state';
+    var p1 = document.createElement('p');
+    p1.textContent = 'Noch kein Briefing für heute veröffentlicht.';
+    var p2 = document.createElement('p');
+    p2.innerHTML = 'Die letzte Ausgabe findest du im <a href="#/archiv">Archiv</a>.';
+    box.appendChild(p1);
+    box.appendChild(p2);
+    wrap.appendChild(box);
+
+    return wrap;
+  }
+
+  function renderPostNotFound(iso) {
+    var wrap = document.createElement('div');
+    var box = document.createElement('div');
+    box.className = 'empty-state';
+    var p1 = document.createElement('p');
+    p1.textContent = 'Diese Ausgabe wurde nicht gefunden.';
+    var p2 = document.createElement('p');
+    p2.innerHTML = 'Zurück zum <a href="#/archiv">Archiv</a>.';
+    box.appendChild(p1);
+    box.appendChild(p2);
+    wrap.appendChild(box);
+    return wrap;
+  }
+
+  function renderPost(item) {
+    var wrap = document.createElement('div');
+    wrap.appendChild(renderMasthead(item.date, !!item.weekly));
+
+    var body = document.createElement('div');
+    body.className = 'brief-body';
+    wrap.appendChild(body);
+
+    document.title = item.title + ' — Morgenbriefing';
+
+    loadPostMarkdown(item)
+      .then(function (md) {
+        body.appendChild(renderBriefBody(md));
+      })
+      .catch(function () {
+        var err = document.createElement('div');
+        err.className = 'empty-state';
+        var p = document.createElement('p');
+        p.textContent = 'Diese Ausgabe konnte nicht geladen werden.';
+        err.appendChild(p);
+        body.appendChild(err);
+      });
+
+    return wrap;
+  }
+
+  function renderArchiv(list) {
+    var wrap = document.createElement('div');
+
+    var title = document.createElement('div');
+    title.className = 'page-title';
+    title.textContent = 'Archiv';
+    wrap.appendChild(title);
+
+    var subtitle = document.createElement('div');
+    subtitle.className = 'page-subtitle';
+    subtitle.textContent = 'Alle Ausgaben';
+    wrap.appendChild(subtitle);
+
+    if (!list.length) {
+      var empty = document.createElement('div');
+      empty.className = 'empty-state';
+      var p = document.createElement('p');
+      p.textContent = 'Noch keine Ausgaben vorhanden.';
+      empty.appendChild(p);
+      wrap.appendChild(empty);
+      return wrap;
+    }
+
+    var ul = document.createElement('ul');
+    ul.className = 'archive-list';
+
+    list.forEach(function (item) {
+      var li = document.createElement('li');
+      li.className = 'archive-item';
+
+      var a = document.createElement('a');
+      a.href = '#/post/' + item.date;
+
+      var meta = document.createElement('div');
+      meta.className = 'archive-meta';
+      var d = document.createElement('div');
+      d.className = 'archive-date';
+      d.textContent = formatDate(item.date);
+      var t = document.createElement('div');
+      t.className = 'archive-title';
+      t.textContent = item.title;
+      meta.appendChild(d);
+      meta.appendChild(t);
+      a.appendChild(meta);
+
+      if (item.weekly) {
+        var badge = document.createElement('span');
+        badge.className = 'archive-badge';
+        badge.textContent = 'Woche';
+        a.appendChild(badge);
+      }
+
+      li.appendChild(a);
+      ul.appendChild(li);
+    });
+
+    wrap.appendChild(ul);
+    return wrap;
+  }
+
+  function renderThemen() {
+    var wrap = document.createElement('div');
+
+    var title = document.createElement('div');
+    title.className = 'page-title';
+    title.textContent = 'Themen';
+    wrap.appendChild(title);
+
+    var box = document.createElement('div');
+    box.className = 'empty-state';
+    var p = document.createElement('p');
+    p.textContent = 'Themen-Einstellungen folgen in einer späteren Version — hier wirst du wählen können, welche Kategorien im täglichen Briefing erscheinen.';
+    box.appendChild(p);
+    wrap.appendChild(box);
+
+    var pills = document.createElement('div');
+    pills.className = 'topic-pills';
+    pills.style.marginTop = '24px';
+    TOPICS.forEach(function (t) {
+      var pill = document.createElement('span');
+      pill.className = 'topic-pill';
+      pill.textContent = t;
+      pills.appendChild(pill);
+    });
+    wrap.appendChild(pills);
+
+    return wrap;
+  }
+
+  function setActiveNav(route) {
+    navItems.forEach(function (el) {
+      el.classList.toggle('active', el.getAttribute('data-route') === route);
+    });
+  }
+
+  function renderView(node) {
+    view.innerHTML = '';
+    view.appendChild(node);
+    window.scrollTo(0, 0);
+  }
+
+  function parseHash() {
+    var h = (window.location.hash || '').replace(/^#/, '');
+    if (h === '' || h === '/') return { route: 'today' };
+    if (h === '/archiv') return { route: 'archiv' };
+    if (h === '/themen') return { route: 'themen' };
+    var m = h.match(/^\/post\/(\d{4}-\d{2}-\d{2})$/);
+    if (m) return { route: 'post', date: m[1] };
+    return { route: 'today' };
+  }
+
+  function route() {
+    var r = parseHash();
+
+    if (r.route === 'today') {
+      setActiveNav('today');
+      loadIndex().then(function (list) {
+        var todayIso = isoToday();
+        var item = list.find(function (i) { return i.date === todayIso; });
+        renderView(item ? renderPost(item) : renderEmptyToday(todayIso));
+      }).catch(function () {
+        renderView(renderEmptyToday(isoToday()));
+      });
+      return;
+    }
+
+    if (r.route === 'archiv') {
+      setActiveNav('archiv');
+      loadIndex().then(function (list) {
+        renderView(renderArchiv(list));
+      }).catch(function () {
+        renderView(renderArchiv([]));
+      });
+      return;
+    }
+
+    if (r.route === 'themen') {
+      setActiveNav('themen');
+      renderView(renderThemen());
+      return;
+    }
+
+    if (r.route === 'post') {
+      setActiveNav('today');
+      loadIndex().then(function (list) {
+        var item = list.find(function (i) { return i.date === r.date; });
+        renderView(item ? renderPost(item) : renderPostNotFound(r.date));
+      }).catch(function () {
+        renderView(renderPostNotFound(r.date));
+      });
+      return;
+    }
+  }
+
+  window.addEventListener('hashchange', route);
+  window.addEventListener('DOMContentLoaded', route);
+  if (document.readyState !== 'loading') route();
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js').catch(function () {});
+    });
+  }
+})();
+</script>
+</body>
+</html>
