@@ -52,7 +52,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 POSTS_DIR = REPO_ROOT / "docs" / "posts"
 INDEX_PATH = POSTS_DIR / "index.json"
 TZ = ZoneInfo("Europe/Zurich")
-MODEL = "claude-opus-5"
+MODEL = "claude-sonnet-5"
 WEEKLY_CONTEXT_DAYS = 7
 
 # Swiss outlets Claude is allowed to pull links from via web search, in the
@@ -275,6 +275,7 @@ def summarize(pdf_text, is_weekly, weekly_context=""):
         model=MODEL,
         max_tokens=16000,
         system=system_prompt,
+        output_config={"effort": "medium"},
         tools=[
             {
                 "type": "web_search_20260209",
