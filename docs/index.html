@@ -94,8 +94,15 @@
     text-transform: uppercase;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
     margin-bottom: 16px;
+  }
+
+  .eyebrow-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .weekly-badge {
@@ -103,6 +110,62 @@
     border: 1px solid var(--border);
     border-radius: 3px;
     color: var(--accent);
+  }
+
+  /* ---- icon buttons (refresh, bookmark) ---- */
+
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .icon-btn svg { stroke: currentColor; }
+
+  .icon-btn.is-saved { color: var(--accent); }
+  .icon-btn.is-saved svg path { fill: currentColor; }
+
+  .icon-btn.is-refreshing svg { animation: icon-spin 0.7s linear infinite; }
+
+  @keyframes icon-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .section-eyebrow-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    margin-bottom: 10px;
+  }
+
+  .section-eyebrow-row .section-eyebrow {
+    padding-top: 0;
+    border-top: none;
+    margin-bottom: 0;
+  }
+
+  .section-eyebrow-row .icon-btn {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+
+  .section-highlight {
+    transition: background-color 1.1s ease-out;
+    border-radius: 3px;
   }
 
   .date-hero {
@@ -157,9 +220,6 @@
     letter-spacing: 0.12em;
     color: var(--muted);
     text-transform: uppercase;
-    padding-top: 16px;
-    border-top: 1px solid var(--border);
-    margin-bottom: 10px;
   }
 
   .brief-section h3 {
@@ -287,6 +347,68 @@
     text-transform: uppercase;
   }
 
+  /* ---- Gespeichert ---- */
+
+  .saved-list { list-style: none; margin: 0; padding: 0; }
+
+  .saved-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .saved-item a {
+    display: block;
+    min-width: 0;
+    flex: 1;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .saved-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .saved-headline {
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--fg);
+    line-height: 1.35;
+    margin-bottom: 4px;
+  }
+
+  .saved-source {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
+
+  .saved-remove {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 16px;
+    line-height: 1;
+  }
+
   /* ---- Themen ---- */
 
   .topic-pills {
@@ -330,7 +452,7 @@
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    padding: 4px 14px;
+    padding: 4px 10px;
     text-decoration: none;
     background: none;
     border: none;
@@ -366,6 +488,10 @@
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="2.5" width="14" height="15" rx="1.5" stroke-width="1.6"/><line x1="6" y1="7" x2="14" y2="7" stroke-width="1.6"/></svg>
       <span class="nav-label">Today</span>
     </a>
+    <a class="nav-item" data-route="gespeichert" href="#/gespeichert">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 3h10v14l-5-4-5 4V3z" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      <span class="nav-label">Gespeichert</span>
+    </a>
     <a class="nav-item" data-route="archiv" href="#/archiv">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><line x1="3" y1="5" x2="17" y2="5" stroke-width="1.6"/><line x1="3" y1="10" x2="17" y2="10" stroke-width="1.6"/><line x1="3" y1="15" x2="17" y2="15" stroke-width="1.6"/></svg>
       <span class="nav-label">Archiv</span>
@@ -389,6 +515,96 @@
   var TOPICS = ['Immobilienmarkt', 'Kapitalmarkt', 'Politik', 'Wirtschaft'];
 
   var indexCache = null;
+  var SAVED_KEY = 'morgenbriefing:saved';
+
+  function getSaved() {
+    try {
+      var raw = localStorage.getItem(SAVED_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function setSaved(list) {
+    try { localStorage.setItem(SAVED_KEY, JSON.stringify(list)); } catch (e) {}
+  }
+
+  function isSaved(id) {
+    return getSaved().some(function (s) { return s.id === id; });
+  }
+
+  function toggleSaved(entry) {
+    var list = getSaved();
+    var idx = list.findIndex(function (s) { return s.id === entry.id; });
+    if (idx === -1) {
+      entry.savedAt = Date.now();
+      list.push(entry);
+      setSaved(list);
+      return true;
+    }
+    list.splice(idx, 1);
+    setSaved(list);
+    return false;
+  }
+
+  function removeSaved(id) {
+    setSaved(getSaved().filter(function (s) { return s.id !== id; }));
+  }
+
+  function bookmarkIconSvg() {
+    return '<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M5 3h10v14l-5-4-5 4V3z" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+  }
+
+  function makeBookmarkButton(meta) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'icon-btn';
+    btn.innerHTML = bookmarkIconSvg();
+    btn.setAttribute('aria-label', 'Für später speichern');
+    var sync = function () {
+      var saved = isSaved(meta.id);
+      btn.classList.toggle('is-saved', saved);
+      btn.setAttribute('aria-pressed', saved ? 'true' : 'false');
+    };
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      toggleSaved({
+        id: meta.id,
+        date: meta.date,
+        postTitle: meta.postTitle,
+        sectionIndex: meta.sectionIndex,
+        eyebrow: meta.eyebrowText,
+        headline: meta.headline
+      });
+      sync();
+    });
+    sync();
+    return btn;
+  }
+
+  function refreshIconSvg() {
+    return '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M16.5 10a6.5 6.5 0 11-2-4.7" stroke-width="1.6" stroke-linecap="round"/><path d="M16.5 3.5V8h-4.5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+
+  function makeRefreshButton(onRefresh) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'icon-btn';
+    btn.innerHTML = refreshIconSvg();
+    btn.setAttribute('aria-label', 'Aktualisieren');
+    btn.addEventListener('click', function () {
+      if (btn.classList.contains('is-refreshing')) return;
+      btn.classList.add('is-refreshing');
+      Promise.resolve(onRefresh()).then(function () {
+        btn.classList.remove('is-refreshing');
+      }, function () {
+        btn.classList.remove('is-refreshing');
+      });
+    });
+    return btn;
+  }
 
   function isoToday() {
     var d = new Date();
@@ -437,7 +653,9 @@
   // Splits marked.js output into a kurzfassung box (leading blockquote)
   // and a list of sections, each starting at an <h2> (eyebrow label),
   // followed by an <h3> (headline), <p> (body) and optional <a> (link).
-  function renderBriefBody(markdown) {
+  // Each section gets a bookmark toggle (save-for-later) and a
+  // data-section-index for deep-linking from the Gespeichert list.
+  function renderBriefBody(markdown, postItem) {
     var html = marked.parse(markdown);
     var tmp = document.createElement('div');
     tmp.innerHTML = html;
@@ -445,6 +663,8 @@
     var frag = document.createDocumentFragment();
     var kurzfassung = null;
     var currentSection = null;
+    var currentMeta = null;
+    var sectionIndex = -1;
 
     Array.prototype.forEach.call(tmp.childNodes, function (node) {
       if (node.nodeType !== 1) return;
@@ -466,12 +686,28 @@
       if (tag === 'H1') return; // title is carried by the masthead date, not repeated in-body
 
       if (tag === 'H2') {
+        sectionIndex += 1;
         currentSection = document.createElement('div');
         currentSection.className = 'brief-section';
+        currentSection.dataset.sectionIndex = String(sectionIndex);
+
+        currentMeta = {
+          id: postItem.date + '::' + sectionIndex,
+          date: postItem.date,
+          postTitle: postItem.title,
+          sectionIndex: sectionIndex,
+          eyebrowText: node.textContent,
+          headline: ''
+        };
+
+        var eyebrowRow = document.createElement('div');
+        eyebrowRow.className = 'section-eyebrow-row';
         var eyebrow = document.createElement('div');
         eyebrow.className = 'section-eyebrow';
         eyebrow.textContent = node.textContent;
-        currentSection.appendChild(eyebrow);
+        eyebrowRow.appendChild(eyebrow);
+        eyebrowRow.appendChild(makeBookmarkButton(currentMeta));
+        currentSection.appendChild(eyebrowRow);
         frag.appendChild(currentSection);
         return;
       }
@@ -480,6 +716,7 @@
         var h3 = document.createElement('h3');
         h3.textContent = node.textContent;
         currentSection.appendChild(h3);
+        if (currentMeta) currentMeta.headline = node.textContent;
         return;
       }
 
@@ -493,20 +730,27 @@
     return out;
   }
 
-  function renderMasthead(iso, weekly) {
+  function renderMasthead(iso, weekly, onRefresh) {
     var wrap = document.createElement('div');
 
     var eyebrowRow = document.createElement('div');
     eyebrowRow.className = 'eyebrow-row';
+
+    var left = document.createElement('div');
+    left.className = 'eyebrow-left';
     var dateSpan = document.createElement('span');
     dateSpan.textContent = formatDate(iso);
-    eyebrowRow.appendChild(dateSpan);
+    left.appendChild(dateSpan);
     if (weekly) {
       var badge = document.createElement('span');
       badge.className = 'weekly-badge';
       badge.textContent = 'Mit Wochenrückblick';
-      eyebrowRow.appendChild(badge);
+      left.appendChild(badge);
     }
+    eyebrowRow.appendChild(left);
+
+    if (onRefresh) eyebrowRow.appendChild(makeRefreshButton(onRefresh));
+
     wrap.appendChild(eyebrowRow);
 
     var hero = document.createElement('div');
@@ -523,7 +767,7 @@
 
   function renderEmptyToday(iso) {
     var wrap = document.createElement('div');
-    wrap.appendChild(renderMasthead(iso, false));
+    wrap.appendChild(renderMasthead(iso, false, refreshCurrentRoute));
 
     var box = document.createElement('div');
     box.className = 'empty-state';
@@ -552,9 +796,9 @@
     return wrap;
   }
 
-  function renderPost(item) {
+  function renderPost(item, isToday, sectionToHighlight) {
     var wrap = document.createElement('div');
-    wrap.appendChild(renderMasthead(item.date, !!item.weekly));
+    wrap.appendChild(renderMasthead(item.date, !!item.weekly, isToday ? refreshCurrentRoute : null));
 
     var body = document.createElement('div');
     body.className = 'brief-body';
@@ -564,7 +808,18 @@
 
     loadPostMarkdown(item)
       .then(function (md) {
-        body.appendChild(renderBriefBody(md));
+        body.appendChild(renderBriefBody(md, item));
+        if (sectionToHighlight != null) {
+          var target = body.querySelector('[data-section-index="' + sectionToHighlight + '"]');
+          if (target) {
+            target.classList.add('section-highlight');
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            requestAnimationFrame(function () {
+              target.style.backgroundColor = 'color-mix(in oklch, var(--accent) 12%, transparent)';
+              setTimeout(function () { target.style.backgroundColor = 'transparent'; }, 900);
+            });
+          }
+        }
       })
       .catch(function () {
         var err = document.createElement('div');
@@ -638,6 +893,79 @@
     return wrap;
   }
 
+  function renderGespeichert() {
+    var wrap = document.createElement('div');
+
+    var title = document.createElement('div');
+    title.className = 'page-title';
+    title.textContent = 'Gespeichert';
+    wrap.appendChild(title);
+
+    var subtitle = document.createElement('div');
+    subtitle.className = 'page-subtitle';
+    subtitle.textContent = 'Später lesen';
+    wrap.appendChild(subtitle);
+
+    var saved = getSaved().slice().sort(function (a, b) { return b.savedAt - a.savedAt; });
+
+    if (!saved.length) {
+      var empty = document.createElement('div');
+      empty.className = 'empty-state';
+      var p = document.createElement('p');
+      p.textContent = 'Noch keine gemerkten Artikel.';
+      var p2 = document.createElement('p');
+      p2.textContent = 'Tippe beim Artikel auf das Lesezeichen-Symbol, um ihn hier zu speichern.';
+      empty.appendChild(p);
+      empty.appendChild(p2);
+      wrap.appendChild(empty);
+      return wrap;
+    }
+
+    var ul = document.createElement('ul');
+    ul.className = 'saved-list';
+
+    saved.forEach(function (entry) {
+      var li = document.createElement('li');
+      li.className = 'saved-item';
+
+      var a = document.createElement('a');
+      a.href = '#/post/' + entry.date + '/' + entry.sectionIndex;
+
+      var eyebrow = document.createElement('div');
+      eyebrow.className = 'saved-eyebrow';
+      eyebrow.textContent = entry.eyebrow || '';
+      a.appendChild(eyebrow);
+
+      var headline = document.createElement('div');
+      headline.className = 'saved-headline';
+      headline.textContent = entry.headline || entry.postTitle;
+      a.appendChild(headline);
+
+      var source = document.createElement('div');
+      source.className = 'saved-source';
+      source.textContent = formatDate(entry.date) + ' · ' + entry.postTitle;
+      a.appendChild(source);
+
+      li.appendChild(a);
+
+      var removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'saved-remove';
+      removeBtn.textContent = '×';
+      removeBtn.setAttribute('aria-label', 'Entfernen');
+      removeBtn.addEventListener('click', function () {
+        removeSaved(entry.id);
+        renderView(renderGespeichert());
+      });
+      li.appendChild(removeBtn);
+
+      ul.appendChild(li);
+    });
+
+    wrap.appendChild(ul);
+    return wrap;
+  }
+
   function renderThemen() {
     var wrap = document.createElement('div');
 
@@ -684,8 +1012,9 @@
     if (h === '' || h === '/') return { route: 'today' };
     if (h === '/archiv') return { route: 'archiv' };
     if (h === '/themen') return { route: 'themen' };
-    var m = h.match(/^\/post\/(\d{4}-\d{2}-\d{2})$/);
-    if (m) return { route: 'post', date: m[1] };
+    if (h === '/gespeichert') return { route: 'gespeichert' };
+    var m = h.match(/^\/post\/(\d{4}-\d{2}-\d{2})(?:\/(\d+))?$/);
+    if (m) return { route: 'post', date: m[1], section: m[2] != null ? Number(m[2]) : null };
     return { route: 'today' };
   }
 
@@ -694,42 +1023,58 @@
 
     if (r.route === 'today') {
       setActiveNav('today');
-      loadIndex().then(function (list) {
+      return loadIndex().then(function (list) {
         var todayIso = isoToday();
         var item = list.find(function (i) { return i.date === todayIso; });
-        renderView(item ? renderPost(item) : renderEmptyToday(todayIso));
+        renderView(item ? renderPost(item, true) : renderEmptyToday(todayIso));
       }).catch(function () {
         renderView(renderEmptyToday(isoToday()));
       });
-      return;
     }
 
     if (r.route === 'archiv') {
       setActiveNav('archiv');
-      loadIndex().then(function (list) {
+      return loadIndex().then(function (list) {
         renderView(renderArchiv(list));
       }).catch(function () {
         renderView(renderArchiv([]));
       });
-      return;
+    }
+
+    if (r.route === 'gespeichert') {
+      setActiveNav('gespeichert');
+      renderView(renderGespeichert());
+      return Promise.resolve();
     }
 
     if (r.route === 'themen') {
       setActiveNav('themen');
       renderView(renderThemen());
-      return;
+      return Promise.resolve();
     }
 
     if (r.route === 'post') {
       setActiveNav('today');
-      loadIndex().then(function (list) {
+      return loadIndex().then(function (list) {
         var item = list.find(function (i) { return i.date === r.date; });
-        renderView(item ? renderPost(item) : renderPostNotFound(r.date));
+        var isToday = r.date === isoToday();
+        renderView(item ? renderPost(item, isToday, r.section) : renderPostNotFound(r.date));
       }).catch(function () {
         renderView(renderPostNotFound(r.date));
       });
-      return;
     }
+
+    return Promise.resolve();
+  }
+
+  function refreshCurrentRoute() {
+    indexCache = null;
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then(function (reg) {
+        if (reg) reg.update();
+      }).catch(function () {});
+    }
+    return route();
   }
 
   window.addEventListener('hashchange', route);
