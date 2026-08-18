@@ -1,0 +1,36 @@
+name: Send push notification
+
+on:
+  schedule:
+    # Every 15 minutes, all day — scripts/send_push.py itself decides
+    # whether it's actually the user's configured delivery time and
+    # whether anything has already been sent today.
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: send-push
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements-push.txt
+
+      - name: Send push if it's time
+        env:
+          PUSH_WORKER_URL: ${{ vars.PUSH_WORKER_URL }}
+          PUSH_AUTH_PASSPHRASE: ${{ secrets.PUSH_AUTH_PASSPHRASE }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+        run: python scripts/send_push.py

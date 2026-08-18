@@ -28,6 +28,7 @@
     --card-bg: #ffffff;
     --nav-bg: oklch(98% 0.005 95 / 0.92);
     --accent: #2A4DA0;
+    --accent-contrast: #ffffff;
 
     --font-display: 'Archivo', sans-serif;
     --font-body: 'IBM Plex Sans', sans-serif;
@@ -48,6 +49,7 @@
       --card-bg: oklch(23% 0.012 250);
       --nav-bg: oklch(20% 0.012 250 / 0.92);
       --accent: color-mix(in oklch, #2A4DA0 62%, white 38%);
+      --accent-contrast: oklch(18% 0.01 250);
     }
   }
 
@@ -477,6 +479,87 @@
     line-height: 1;
   }
 
+  /* ---- Settings / Benachrichtigungen ---- */
+
+  .settings-box {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 18px 16px;
+    margin-bottom: 32px;
+  }
+
+  .settings-heading {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .settings-hint {
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  .settings-status {
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--fg);
+    margin-bottom: 4px;
+  }
+
+  .settings-label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 14px 0 6px;
+  }
+
+  .settings-input {
+    display: block;
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 9px 10px;
+    box-sizing: border-box;
+  }
+
+  .settings-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .settings-btn {
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--accent-contrast);
+    background: var(--accent);
+    border: none;
+    border-radius: 4px;
+    padding: 10px 14px;
+    cursor: pointer;
+  }
+
+  .settings-btn-muted {
+    color: var(--fg);
+    background: none;
+    border: 1px solid var(--border);
+  }
+
   /* ---- Themen ---- */
 
   .topic-pills {
@@ -576,7 +659,12 @@
   var navItems = document.querySelectorAll('.nav-item');
 
   var WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
-  var TOPICS = ['Immobilienmarkt', 'Kapitalmarkt', 'Politik', 'Wirtschaft'];
+  var TOPICS = [
+    'Leitzinsen & Geldpolitik', 'Immobilienmarkt CH', 'Mietrecht & Baurecht',
+    'Kapitalmarkt', 'SFP Soupe du Jour', 'Wohnpolitik',
+    'Kantonale Wirtschaftspolitik', 'Stadt Zürich', 'Verkehrspolitik',
+    'Volkswirtschaft & Arbeitsmarkt', 'Weltgeschehen'
+  ];
 
   var indexCache = null;
   var SAVED_KEY = 'morgenbriefing:saved';
@@ -668,6 +756,184 @@
       });
     });
     return btn;
+  }
+
+  // Fill in PUSH_WORKER_URL after the one-time Cloudflare Worker setup
+  // (see worker/SETUP.md) — it's the Worker's *.workers.dev URL, which
+  // depends on your account's subdomain and isn't knowable in advance.
+  var PUSH_WORKER_URL = 'https://immo-briefing-push.YOUR-SUBDOMAIN.workers.dev';
+  var VAPID_PUBLIC_KEY = 'BCJZ8K3cMvIF18RHXky2gQy0ZgbhG8kD101Fy0FAVV0hTodvNDeaNK6JD-GqsiP74qClL2h0S8LMVFwDpuFAT-U';
+  var PUSH_AUTH_KEY = 'morgenbriefing:pushAuth';
+
+  function getPushAuth() {
+    try { return localStorage.getItem(PUSH_AUTH_KEY) || ''; } catch (e) { return ''; }
+  }
+
+  function setPushAuth(v) {
+    try { localStorage.setItem(PUSH_AUTH_KEY, v); } catch (e) {}
+  }
+
+  function urlBase64ToUint8Array(base64String) {
+    var padding = '='.repeat((4 - base64String.length % 4) % 4);
+    var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    var rawData = atob(base64);
+    var outputArray = new Uint8Array(rawData.length);
+    for (var i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+    return outputArray;
+  }
+
+  function pushSupported() {
+    return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  }
+
+  function isStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
+  function pushFetch(path, options) {
+    options = options || {};
+    var headers = { 'Authorization': 'Bearer ' + getPushAuth() };
+    var body;
+    if (options.body) {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify(options.body);
+    }
+    return fetch(PUSH_WORKER_URL + path, { method: options.method || 'GET', headers: headers, body: body })
+      .then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (data) {
+          if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+          return data;
+        });
+      });
+  }
+
+  function renderNotificationSettings(container) {
+    var box = document.createElement('div');
+    box.className = 'settings-box';
+
+    var heading = document.createElement('div');
+    heading.className = 'settings-heading';
+    heading.textContent = 'Benachrichtigungen';
+    box.appendChild(heading);
+
+    if (!pushSupported()) {
+      var unsupported = document.createElement('p');
+      unsupported.className = 'settings-hint';
+      unsupported.textContent = 'Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.';
+      box.appendChild(unsupported);
+      container.appendChild(box);
+      return;
+    }
+
+    if (!isStandalone()) {
+      var notInstalled = document.createElement('p');
+      notInstalled.className = 'settings-hint';
+      notInstalled.textContent = 'Füge die App zuerst über "Zum Home-Bildschirm" hinzu — Push-Benachrichtigungen funktionieren auf dem iPhone nur in der installierten App.';
+      box.appendChild(notInstalled);
+      container.appendChild(box);
+      return;
+    }
+
+    var status = document.createElement('div');
+    status.className = 'settings-status';
+    status.textContent = 'Lade Status …';
+    box.appendChild(status);
+
+    var passLabel = document.createElement('label');
+    passLabel.className = 'settings-label';
+    passLabel.textContent = 'Passphrase';
+    box.appendChild(passLabel);
+    var passInput = document.createElement('input');
+    passInput.type = 'password';
+    passInput.className = 'settings-input';
+    passInput.autocomplete = 'off';
+    passInput.value = getPushAuth();
+    passInput.placeholder = 'Einmalig festgelegte Passphrase';
+    box.appendChild(passInput);
+
+    var timeLabel = document.createElement('label');
+    timeLabel.className = 'settings-label';
+    timeLabel.textContent = 'Uhrzeit';
+    box.appendChild(timeLabel);
+    var timeInput = document.createElement('input');
+    timeInput.type = 'time';
+    timeInput.className = 'settings-input';
+    timeInput.value = '06:30';
+    box.appendChild(timeInput);
+
+    var actions = document.createElement('div');
+    actions.className = 'settings-actions';
+    var enableBtn = document.createElement('button');
+    enableBtn.type = 'button';
+    enableBtn.className = 'settings-btn';
+    enableBtn.textContent = 'Aktivieren / Speichern';
+    var disableBtn = document.createElement('button');
+    disableBtn.type = 'button';
+    disableBtn.className = 'settings-btn settings-btn-muted';
+    disableBtn.textContent = 'Deaktivieren';
+    actions.appendChild(enableBtn);
+    actions.appendChild(disableBtn);
+    box.appendChild(actions);
+
+    function refreshStatus() {
+      if (!getPushAuth()) {
+        status.textContent = 'Passphrase eingeben und speichern, um den Status zu laden.';
+        return;
+      }
+      pushFetch('/settings').then(function (data) {
+        if (data.subscription && data.time) {
+          status.textContent = 'Aktiv — täglich um ' + data.time + ' Uhr.';
+          timeInput.value = data.time;
+        } else {
+          status.textContent = 'Noch nicht aktiviert.';
+        }
+      }).catch(function (err) {
+        status.textContent = 'Status konnte nicht geladen werden (' + err.message + ').';
+      });
+    }
+
+    enableBtn.addEventListener('click', function () {
+      setPushAuth(passInput.value);
+      status.textContent = 'Aktiviere …';
+      Notification.requestPermission().then(function (perm) {
+        if (perm !== 'granted') {
+          status.textContent = 'Berechtigung für Benachrichtigungen wurde nicht erteilt.';
+          return;
+        }
+        return navigator.serviceWorker.ready.then(function (reg) {
+          return reg.pushManager.getSubscription().then(function (existing) {
+            return existing || reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            });
+          });
+        }).then(function (sub) {
+          return pushFetch('/subscribe', { method: 'POST', body: { subscription: sub.toJSON(), time: timeInput.value } });
+        }).then(function () {
+          status.textContent = 'Aktiv — täglich um ' + timeInput.value + ' Uhr.';
+        });
+      }).catch(function (err) {
+        status.textContent = 'Fehler: ' + err.message;
+      });
+    });
+
+    disableBtn.addEventListener('click', function () {
+      status.textContent = 'Deaktiviere …';
+      navigator.serviceWorker.ready.then(function (reg) {
+        return reg.pushManager.getSubscription();
+      }).then(function (sub) {
+        return sub ? sub.unsubscribe() : null;
+      }).then(function () {
+        return pushFetch('/unsubscribe', { method: 'POST' });
+      }).then(function () {
+        status.textContent = 'Deaktiviert.';
+      }).catch(function (err) {
+        status.textContent = 'Fehler: ' + err.message;
+      });
+    });
+
+    container.appendChild(box);
+    refreshStatus();
   }
 
   var GITHUB_REPO = 'pasquales-art/immo_briefing';
@@ -1138,13 +1404,20 @@
 
     var title = document.createElement('div');
     title.className = 'page-title';
-    title.textContent = 'Themen';
+    title.textContent = 'Einstellungen';
     wrap.appendChild(title);
+
+    renderNotificationSettings(wrap);
+
+    var topicsHeading = document.createElement('div');
+    topicsHeading.className = 'settings-heading';
+    topicsHeading.textContent = 'Themen';
+    wrap.appendChild(topicsHeading);
 
     var box = document.createElement('div');
     box.className = 'empty-state';
     var p = document.createElement('p');
-    p.textContent = 'Themen-Einstellungen folgen in einer späteren Version — hier wirst du wählen können, welche Kategorien im täglichen Briefing erscheinen.';
+    p.textContent = 'Themen-Auswahl folgt in einer späteren Version — hier wirst du steuern können, welche der folgenden Kategorien im täglichen Briefing erscheinen.';
     box.appendChild(p);
     wrap.appendChild(box);
 

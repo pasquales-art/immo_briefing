@@ -1,0 +1,18 @@
+name = "immo-briefing-push"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+# One-time setup (see worker/SETUP.md): create a KV namespace named
+# "immo-briefing-push-settings" and paste its ID below. Everything else
+# deploys automatically via .github/workflows/deploy-worker.yml.
+[[kv_namespaces]]
+binding = "SETTINGS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[vars]
+ALLOWED_ORIGIN = "https://pasquales-art.github.io"
+
+# AUTH_PASSPHRASE is a secret, not a var — set via:
+#   wrangler secret put AUTH_PASSPHRASE
+# (the deploy workflow does this automatically from the
+# PUSH_AUTH_PASSPHRASE repo secret — see worker/SETUP.md)
