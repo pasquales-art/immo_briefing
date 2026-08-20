@@ -52,7 +52,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 POSTS_DIR = REPO_ROOT / "docs" / "posts"
 INDEX_PATH = POSTS_DIR / "index.json"
 TZ = ZoneInfo("Europe/Zurich")
-MODEL = "claude-sonnet-5"
+MODEL = "claude-haiku-4-5"
 WEEKLY_CONTEXT_DAYS = 7
 
 # Swiss outlets Claude is allowed to pull links from via web search, in the
@@ -275,10 +275,13 @@ def summarize(pdf_text, is_weekly, weekly_context=""):
         model=MODEL,
         max_tokens=16000,
         system=system_prompt,
-        output_config={"effort": "medium"},
         tools=[
             {
-                "type": "web_search_20260209",
+                # Haiku 4.5 doesn't support the newer web_search_20260209
+                # (dynamic-filtering) variant — that's Opus 5/4.8/4.7/4.6,
+                # Sonnet 5/4.6 only. This basic variant is the one older/
+                # smaller models take.
+                "type": "web_search_20250305",
                 "name": "web_search",
                 "max_uses": 15,
                 "allowed_domains": ALLOWED_NEWS_DOMAINS,
