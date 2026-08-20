@@ -280,7 +280,7 @@ def summarize(pdf_text, is_weekly, weekly_context=""):
             {
                 "type": "web_search_20260209",
                 "name": "web_search",
-                "max_uses": 20,
+                "max_uses": 15,
                 "allowed_domains": ALLOWED_NEWS_DOMAINS,
             }
         ],
