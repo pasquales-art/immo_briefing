@@ -1,2 +1,15 @@
 __pycache__/
 *.pyc
+
+# --- icloud_photo_migration: Secrets & lokale Daten NIE committen ---
+.env
+*.env
+icloud_photo_migration/.env
+icloud_photo_migration/secrets/
+icloud_photo_migration/work/
+icloud_photo_migration/output/
+icloud_photo_migration/logs/
+icloud_photo_migration/state/
+*.session
+*.token
+token_cache*.bin

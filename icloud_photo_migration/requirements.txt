@@ -1,0 +1,14 @@
+# --- Bild-/Video-Konvertierung ---
+Pillow>=10.2.0
+pillow-heif>=0.15.0          # HEIC/HEIF (iPhone-Originale) lesen
+piexif>=1.1.3               # EXIF fallback-Schreiben in JPEG
+
+# --- Quellen ---
+msal>=1.28.0                # OneDrive / Microsoft Graph (Device-Code-Login)
+requests>=2.31.0
+
+# --- iCloud Photos ---
+pyicloud>=1.0.0             # inoffiziell, iCloud-Photos-Upload (fragil, siehe SETUP.md)
+
+# Google Drive braucht KEIN Paket: In Colab via drive.mount() nativ gemountet.
+# exiftool + ffmpeg werden per apt installiert (siehe Notebook / SETUP.md), nicht via pip.
